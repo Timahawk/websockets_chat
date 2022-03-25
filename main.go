@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 )
 
 var Hubs = map[string]*Hub{}
@@ -26,8 +25,11 @@ func init() {
 	logger.SetOutput(os.Stdout)
 
 	// Only log the warning severity or above.
-	logger.SetLevel(log.DebugLevel)
-
+	logger.SetLevel(logrus.DebugLevel)
+	//
+	logger.SetFormatter(
+		&logrus.TextFormatter{TimestampFormat: "2006/01/02 - 15:04:05",
+			FullTimestamp: true})
 	// Initialize Random
 	rand.Seed(time.Now().UnixNano())
 }
@@ -35,7 +37,7 @@ func init() {
 func main() {
 
 	r := gin.Default()
-	r.LoadHTMLGlob("*.html")
+	r.LoadHTMLGlob("public/templates/*.html")
 
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(200, "start.html", nil)
@@ -64,7 +66,7 @@ func main() {
 		user := c.Query("user")
 
 		// This is a replica with the Gin-Logger...
-		logger.WithFields(log.Fields{
+		logger.WithFields(logrus.Fields{
 			"user": user,
 			"room": room,
 		}).Info()

@@ -7,13 +7,12 @@ package main
 import (
 	"log"
 	"math/rand"
-	"reflect"
 	"time"
 )
 
 const (
 	// Period to loop through all Hubs and Close those without Clients.
-	closeTime     = 30 * time.Second
+	closeTime     = 10 * time.Second
 	letterBytes   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -88,23 +87,20 @@ func CloseClientlessHubs(closeTime time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
-			for idx, hub := range Hubs {
+			for _, hub := range Hubs {
 				if x := len(hub.clients); x == 0 {
-					log.Println("Closing Hub ", hub.HubID, "because no Clients.")
-					sliceRemoveItem(Hubs, idx)
+
+					delete(Hubs, hub.HubID)
+
+					log.Println("Closed Hub ", hub.HubID, "because no Clients.")
 				}
 			}
-		// This is unterly stupid
+		// This is utterly stupid
 		// But don´t know how to fix.
 		case <-fail:
 			log.Println("This should NEVER be run")
 		}
 	}
-}
-
-func sliceRemoveItem(slicep interface{}, i int) {
-	v := reflect.ValueOf(slicep).Elem()
-	v.Set(reflect.AppendSlice(v.Slice(0, i), v.Slice(i+1, v.Len())))
 }
 
 // https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go

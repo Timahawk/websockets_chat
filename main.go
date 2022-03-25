@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var Hubs []*Hub
+var Hubs = map[string]*Hub{}
 
 func main() {
 
@@ -38,7 +38,9 @@ func main() {
 		clients:    make(map[*Client]bool)}
 	go hub_b.run()
 
-	Hubs = append(Hubs, hub_a, hub_b)
+	// Hubs = append(Hubs, hub_a, hub_b)
+	Hubs[hub_a.HubID] = hub_a
+	Hubs[hub_b.HubID] = hub_b
 
 	r := gin.Default()
 	r.LoadHTMLGlob("*.html")
@@ -49,7 +51,7 @@ func main() {
 
 	r.POST("/", func(c *gin.Context) {
 		hub := newHub()
-		Hubs = append(Hubs, hub)
+		Hubs[hub.HubID] = hub
 		log.Println("New Room created", hub.HubID)
 		c.String(200, fmt.Sprintln("Room created", hub.HubID))
 	})
@@ -78,8 +80,10 @@ func main() {
 		serveWs(hub, c.Writer, c.Request)
 	})
 
-	// TODO teste das hier. Ich denk das macht errors
-	// go CloseClientlessHubs(closeTime) -> jap macht error
+	// Goroutine that checks if OpenHubs are connected to,
+	// if not Hub is deleted.
+	// TODO check if all depending goroutines are stopped/closed
+	go CloseClientlessHubs(closeTime)
 
 	// Initialize Random
 	rand.Seed(time.Now().UnixNano()) //TODO -> move to init
@@ -89,11 +93,8 @@ func main() {
 
 func getHub(room string) (*Hub, error) {
 
-	for _, hub := range Hubs {
-		if hub.HubID == room {
-			return hub, nil
-		}
+	if hub, ok := Hubs[room]; ok {
+		return hub, nil
 	}
-
 	return &Hub{}, errors.New(fmt.Sprintln("room not found for Room", room))
 }

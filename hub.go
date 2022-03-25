@@ -5,14 +5,14 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
 
 const (
 	// Period to loop through all Hubs and Close those without Clients.
-	closeTime     = 10 * time.Second
+	closeTime = 5 * time.Minute
+	// This are all the letters RandStringBytesMaskImpr can draw from.
 	letterBytes   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -46,13 +46,13 @@ func newHub() *Hub {
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 	}
-	log.Println("Created new Hub", hub.HubID)
+	logger.Info("Created new Hub", hub.HubID)
 	go hub.run()
 	return hub
 }
 
 func (h *Hub) run() {
-	log.Println("Started to run Hub", h.HubID)
+	logger.Info("Started to run Hub ", h.HubID)
 	for {
 		select {
 		case client := <-h.register:
@@ -65,6 +65,7 @@ func (h *Hub) run() {
 		case message := <-h.broadcast:
 			for client := range h.clients {
 
+				// I dont get why this is nessesarry
 				select {
 				case client.send <- message:
 				default:
@@ -92,17 +93,20 @@ func CloseClientlessHubs(closeTime time.Duration) {
 
 					delete(Hubs, hub.HubID)
 
-					log.Println("Closed Hub ", hub.HubID, "because no Clients.")
+					logger.Info("Closed Hub ", hub.HubID, "because no Clients.")
 				}
 			}
 		// This is utterly stupid
 		// But don´t know how to fix.
 		case <-fail:
-			log.Println("This should NEVER be run")
+			logger.Panic("This should NEVER be run")
 		}
 	}
 }
 
+// Generates Random String with Lenght n from Letters specified in letterBytes
+//
+// Stolen from Stack Overflow.
 // https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
 func RandStringBytesMaskImpr(n int) string {
 	b := make([]byte, n)

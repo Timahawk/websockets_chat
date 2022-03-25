@@ -6,7 +6,8 @@ package main
 
 import (
 	"bytes"
-	"log"
+	"fmt"
+
 	"net/http"
 	"time"
 
@@ -30,16 +31,19 @@ const (
 var (
 	newline = []byte{'\n'}
 	space   = []byte{' '}
-)
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+)
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	hub *Hub
+
+	// The Username as provided by the User
+	User string
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -64,16 +68,16 @@ func (c *Client) readPump() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 
-		log.Println("readPump recevied message", message)
+		logger.Debug("readPump recevied message", string(message))
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				logger.Error("error: %v", err)
 			}
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+		c.hub.broadcast <- []byte(fmt.Sprintf("%s %s", c.User, message))
 	}
 }
 
@@ -92,7 +96,7 @@ func (c *Client) writePump() {
 		select {
 		case message, ok := <-c.send:
 
-			log.Println("WritePump received message", message)
+			logger.Debug("WritePump received message", string(message))
 
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
@@ -119,7 +123,7 @@ func (c *Client) writePump() {
 			}
 		case <-ticker.C:
 
-			log.Println("Ticker did sth.")
+			logger.Debug("Ticker did sth.")
 
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -130,13 +134,13 @@ func (c *Client) writePump() {
 }
 
 // serveWs handles websocket requests from the peer.
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func serveWs(hub *Hub, user string, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		logger.Error(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{hub: hub, User: user, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
@@ -144,5 +148,5 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	go client.writePump()
 	go client.readPump()
 
-	log.Println("Starting to serve WS for hub", hub.HubID)
+	logger.Info("Starting to serve WS for hub ", hub.HubID)
 }

@@ -8,6 +8,10 @@ window.onload = function () {
     var msg = document.getElementById("msg");
     var log = document.getElementById("log");
 
+    var user;
+
+    user = prompt("Please enter your name:", "Harry Potter");
+
     function appendLog(item) {
         var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
         log.appendChild(item);
@@ -33,7 +37,7 @@ window.onload = function () {
         path = window.location.pathname;
         path = path.replace("/chat", "")
         
-        conn = new WebSocket("ws://" + document.location.host + path + "/ws");
+        conn = new WebSocket("ws://" + document.location.host + path + "/ws" + "?user=" + user);
         conn.onclose = function (evt) {
             var item = document.createElement("div");
             item.innerHTML = "<b>Connection closed.</b>";

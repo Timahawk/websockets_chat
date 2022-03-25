@@ -7,40 +7,32 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
+	"os"
+
 	"math/rand"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 var Hubs = map[string]*Hub{}
+var logger = logrus.New()
+
+func init() {
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	logger.SetOutput(os.Stdout)
+
+	// Only log the warning severity or above.
+	logger.SetLevel(log.DebugLevel)
+
+	// Initialize Random
+	rand.Seed(time.Now().UnixNano())
+}
 
 func main() {
-
-	/*
-		hub := newHub()
-		go hub.run()
-	*/
-	hub_a := &Hub{
-		HubID:      "AAAAAA",
-		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool)}
-	go hub_a.run()
-
-	hub_b := &Hub{
-		HubID:      "BBBBBB",
-		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool)}
-	go hub_b.run()
-
-	// Hubs = append(Hubs, hub_a, hub_b)
-	Hubs[hub_a.HubID] = hub_a
-	Hubs[hub_b.HubID] = hub_b
 
 	r := gin.Default()
 	r.LoadHTMLGlob("*.html")
@@ -52,7 +44,7 @@ func main() {
 	r.POST("/", func(c *gin.Context) {
 		hub := newHub()
 		Hubs[hub.HubID] = hub
-		log.Println("New Room created", hub.HubID)
+		logger.Info("New Room created", hub.HubID)
 		c.String(200, fmt.Sprintln("Room created", hub.HubID))
 	})
 
@@ -60,7 +52,7 @@ func main() {
 		room := c.Param("room")
 		_, err := getHub(room)
 		if err != nil {
-			log.Println("RoomID not available", err)
+			logger.Warn("RoomID not available", err)
 			c.String(404, "Room not found")
 			return
 		}
@@ -69,15 +61,22 @@ func main() {
 
 	r.GET(":room/ws", func(c *gin.Context) {
 		room := c.Param("room")
+		user := c.Query("user")
+
+		// This is a replica with the Gin-Logger...
+		logger.WithFields(log.Fields{
+			"user": user,
+			"room": room,
+		}).Info()
 
 		hub, err := getHub(room)
 		if err != nil {
-			log.Println("RoomID not available In Websocket", err)
+			logger.Info("RoomID not available In Websocket", err)
 			c.String(404, "Room not found")
 			return
 		}
-
-		serveWs(hub, c.Writer, c.Request)
+		// Handles the Websocket, for this particular requests.
+		serveWs(hub, user, c.Writer, c.Request)
 	})
 
 	// Goroutine that checks if OpenHubs are connected to,
@@ -85,12 +84,10 @@ func main() {
 	// TODO check if all depending goroutines are stopped/closed
 	go CloseClientlessHubs(closeTime)
 
-	// Initialize Random
-	rand.Seed(time.Now().UnixNano()) //TODO -> move to init
-
 	r.Run()
 }
 
+// Simple Helper function to check if Hub exists.
 func getHub(room string) (*Hub, error) {
 
 	if hub, ok := Hubs[room]; ok {

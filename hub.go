@@ -6,12 +6,19 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"reflect"
 	"time"
 )
 
-// Period to loop through all Hubs and Close those without Clients.
-const closeTime = 1 * time.Hour
+const (
+	// Period to loop through all Hubs and Close those without Clients.
+	closeTime     = 30 * time.Second
+	letterBytes   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -34,7 +41,7 @@ type Hub struct {
 
 func newHub() *Hub {
 	hub := &Hub{
-		HubID:      "ACH42H", // TODO muss was bessers her.
+		HubID:      RandStringBytesMaskImpr(6), // TODO muss was bessers her.
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -98,4 +105,23 @@ func CloseClientlessHubs(closeTime time.Duration) {
 func sliceRemoveItem(slicep interface{}, i int) {
 	v := reflect.ValueOf(slicep).Elem()
 	v.Set(reflect.AppendSlice(v.Slice(0, i), v.Slice(i+1, v.Len())))
+}
+
+// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
+func RandStringBytesMaskImpr(n int) string {
+	b := make([]byte, n)
+	// A rand.Int63() generates 63 random bits, enough for letterIdxMax letters!
+	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = rand.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
 }

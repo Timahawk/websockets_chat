@@ -4,6 +4,14 @@ This application shows how to use the
 [websocket](https://github.com/gorilla/websocket) package to implement a simple
 web chat application.
 
+## Changes made by me
+This application now uses the gin.Default Router to handle Requests, and other 
+Server related tasks.
+
+The main change is that instead of a single Chat room, multiple Chat roomes
+can be created, and joined by using the appropriate link -> localhost:8080/XXXXXX/chat
+whereas XXXXXX is a randomly generated numberXletter combo.
+
 ## Running the example
 
 The example requires a working Go development environment. The [Getting

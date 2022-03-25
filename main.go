@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -77,7 +79,10 @@ func main() {
 	})
 
 	// TODO teste das hier. Ich denk das macht errors
-	go CloseClientlessHubs(closeTime)
+	// go CloseClientlessHubs(closeTime) -> jap macht error
+
+	// Initialize Random
+	rand.Seed(time.Now().UnixNano()) //TODO -> move to init
 
 	r.Run()
 }
